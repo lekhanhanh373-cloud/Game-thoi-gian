@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Độ phản xạ của bạn</title>
+  <style>
+    :root{
+      --bg:#061123;
+      --card:#071a2b;
+      --accent:#22c55e;
+      --accent-2:#7c3aed;
+      --text:#e6eef8;
+      --muted:#9fb0c8;
+      --glass: rgba(255,255,255,0.04);
+    }
+    *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#031021,#051428);color:var(--text);display:flex;align-items:center;justify-content:center;}
+    .app{width:100%;max-width:920px;padding:20px;}
+    .screen{background:linear-gradient(180deg,var(--card), #031423);border-radius:14px;padding:28px;box-shadow:0 10px 40px rgba(2,6,23,0.7);min-height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;}
+    h1{margin:0 0 18px 0;font-size:20px;letter-spacing:0.4px}
+    .subtitle{color:var(--muted);font-size:13px;margin-bottom:18px}
+    .btn{border:none;padding:16px 28px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(2,6,23,0.6);font-size:18px}
+    .btn-play{background:linear-gradient(180deg,#34d399,#16a34a);color:#052014}
+    .btn-start{background:linear-gradient(180deg,#10b981,#059669);color:#042014;min-width:220px;min-height:72px;font-size:26px;border-radius:14px}
+    .btn-purple{background:linear-gradient(180deg,#8b5cf6,#6d28d9);color:white;padding:10px 14px;border-radius:10px}
+    .topbar{position:absolute;top:14px;right:16px;display:flex;gap:8px;align-items:center}
+    .timer{font-size:48px;font-weight:800;letter-spacing:0.6px;margin:10px 0}
+    .countdown{font-size:56px;font-weight:900;margin:6px 0;color:#ffd166}
+    .hint{color:var(--muted);font-size:13px;margin-top:6px}
+    .hidden{display:none}
+    .big-click-area{position:absolute;inset:0;border-radius:14px;cursor:pointer;}
+    .result{display:flex;flex-direction:column;gap:12px;align-items:center}
+    .small{font-size:14px;color:var(--muted)}
+    .scores-list{max-height:320px;overflow:auto;width:320px;padding:8px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
+    .score-item{display:flex;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.02);font-size:14px}
+    .footer{margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:40}
+    .modal{background:var(--card);padding:18px;border-radius:12px;max-width:720px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,0.6)}
+    .row{display:flex;gap:10px;align-items:center}
+    @media (max-width:600px){
+      .timer{font-size:36px}
+      .countdown{font-size:48px}
+      .btn-start{min-width:180px;min-height:60px;font-size:22px}
+      .scores-list{width:92%}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Main screen container -->
+    <div id="intro" class="screen">
+      <h1>độ phản xạ của bạn</h1>
+      <div class="subtitle">Kiểm tra phản xạ: bấm play để bắt đầu</div>
+      <button id="playBtn" class="btn btn-play">Play</button>
+      <div class="footer">Khi vào game, bấm "Bắt đầu" → đếm ngược 3 giây → bắt đầu bấm thật nhanh để dừng đồng hồ.</div>
+    </div>
+
+    <!-- Game screen -->
+    <div id="gameScreen" class="screen hidden">
+      <div class="topbar">
+        <button id="rankBtn" class="btn-purple" title="Xếp hạng">Xếp hạng</button>
+      </div>
+
+      <h1>Trò chơi phản xạ</h1>
+      <div class="subtitle">Chuẩn bị sẵn tay, khi đồng hồ chạy hãy bấm thật nhanh để dừng!</div>
+
+      <!-- Start area -->
+      <div id="startArea" style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <button id="startBtn" class="btn-start">Bắt đầu</button>
+        <div class="hint">Sau khi bấm Bắt đầu, nút sẽ biến mất và xuất hiện đếm ngược 3...2...1</div>
+      </div>
+
+      <!-- Countdown / game area -->
+      <div id="playArea" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:12px;position:relative">
+        <div id="countdown" class="countdown hidden">3</div>
+        <div id="timer" class="timer hidden">0.000 s</div>
+        <div id="instruction" class="small hidden">Nhấn bất kỳ nơi nào (hoặc phím Space) để dừng</div>
+        <div id="resultArea" class="hidden result">
+          <div id="finalText" style="font-size:20px;font-weight:800"></div>
+          <button id="retryBtn" class="btn btn-play">Chơi lại</button>
+        </div>
+      </div>
+
+      <!-- invisible click area to stop quickly -->
+      <div id="clickArea" class="big-click-area hidden" tabindex="0" role="button" aria-label="Click để dừng"></div>
+
+    </div>
+
+    <!-- Ranking modal (hidden) -->
+    <div id="modal" class="hidden">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>Xếp hạng phản xạ</strong>
+          <div style="display:flex;gap:8px">
+            <button id="closeModal" class="btn" style="background:#334155">Đóng</button>
+            <button id="clearRanks" class="btn" style="background:#ef4444;color:white">Xóa</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <div class="small" style="margin-bottom:6px">Top nhanh nhất (giây)</div>
+            <div id="topList" class="scores-list"></div>
+          </div>
+          <div style="width:1px;background:rgba(255,255,255,0.03)"></div>
+          <div style="flex:1;min-width:220px">
+            <div class="small" style="margin-bottom:6px">Lịch sử gần đây của bạn</div>
+            <div id="yourList" class="scores-list"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;text-align:right;color:var(--muted);font-size:13px">Lưu trữ cục bộ trên trình duyệt</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Elements
+    const intro = document.getElementById('intro');
+    const playBtn = document.getElementById('playBtn');
+    const gameScreen = document.getElementById('gameScreen');
+    const startArea = document.getElementById('startArea');
+    const startBtn = document.getElementById('startBtn');
+    const playArea = document.getElementById('playArea');
+    const countdownEl = document.getElementById('countdown');
+    const timerEl = document.getElementById('timer');
+    const instruction = document.getElementById('instruction');
+    const clickArea = document.getElementById('clickArea');
+    const resultArea = document.getElementById('resultArea');
+    const finalText = document.getElementById('finalText');
+    const retryBtn = document.getElementById('retryBtn');
+    const rankBtn = document.getElementById('rankBtn');
+    const modalWrap = document.getElementById('modal');
+    const closeModal = document.getElementById('closeModal');
+    const topList = document.getElementById('topList');
+    const yourList = document.getElementById('yourList');
+    const clearRanks = document.getElementById('clearRanks');
+
+    // State
+    let state = 'intro'; // intro, ready, counting, running, stopped
+    let countdownTimer = null;
+    let runStart = 0;
+    let rafId = null;
+    let elapsed = 0;
+    const STORAGE_KEY = 'reaction_scores_v1';
+
+    // Helpers
+    function showIntro(){ intro.classList.remove('hidden'); gameScreen.classList.add('hidden'); state='intro'; }
+    function showGame(){ intro.classList.add('hidden'); gameScreen.classList.remove('hidden'); state='ready'; resetToReady(); }
+    function resetToReady(){
+      // show Start button, hide playArea/result
+      startArea.style.display='flex';
+      playArea.classList.add('hidden');
+      countdownEl.classList.add('hidden');
+      timerEl.classList.add('hidden');
+      instruction.classList.add('hidden');
+      clickArea.classList.add('hidden');
+      resultArea.classList.add('hidden');
+      countdownEl.textContent = '3';
+      timerEl.textContent = '0.000 s';
+    }
+
+    playBtn.addEventListener('click', ()=> { showGame(); });
+
+    // Start button -> start countdown
+    startBtn.addEventListener('click', () => {
+      if(state !== 'ready') return;
+      state = 'counting';
+      startArea.style.display='none';
+      playArea.classList.remove('hidden');
+      countdownEl.classList.remove('hidden');
+      countdownEl.textContent = '3';
+      // countdown 3,2,1 then start
+      let count = 3;
+      countdownEl.textContent = String(count);
+      countdownTimer = setInterval(() => {
+        count--;
+        if(count > 0){
+          countdownEl.textContent = String(count);
+        } else {
+          clearInterval(countdownTimer);
+          countdownEl.classList.add('hidden');
+          beginRun();
+        }
+      }, 1000);
+    });
+
+    function beginRun(){
+      // start the fast timer
+      state = 'running';
+      timerEl.classList.remove('hidden');
+      instruction.classList.remove('hidden');
+      clickArea.classList.remove('hidden');
+      runStart = performance.now();
+      elapsed = 0;
+      // animation loop
+      function frame(){
+        const now = performance.now();
+        elapsed = now - runStart;
+        timerEl.textContent = formatMs(elapsed);
+        rafId = requestAnimationFrame(frame);
+      }
+      rafId = requestAnimationFrame(frame);
+      // focus clickArea for keyboard
+      clickArea.focus();
+    }
+
+    // Stop run
+    function stopRun(byUser=true){
+      if(state !== 'running') return;
+      state = 'stopped';
+      if(rafId) cancelAnimationFrame(rafId);
+      finalText.textContent = formatMs(elapsed) + ' (phản xạ của bạn)';
+      // save score
+      saveScore(elapsed);
+      // show result & retry
+      resultArea.classList.remove('hidden');
+      // hide instruction and clickArea to prevent more input
+      instruction.classList.add('hidden');
+      clickArea.classList.add('hidden');
+      timerEl.textContent = formatMs(elapsed);
+      // update ranking display (if modal open)
+      renderRanks();
+    }
+
+    // Click / Keyboard handlers to stop when running
+    clickArea.addEventListener('click', ()=> stopRun());
+    window.addEventListener('keydown', (e) => {
+      if(e.code === 'Space' || e.key === ' '){
+        if(state === 'running'){ e.preventDefault(); stopRun(); }
+        else if(state === 'ready' && document.activeElement === document.body){
+          // allow space to start when ready
+          startBtn.focus();
+        }
+      }
+      // also allow Enter to start when ready
+      if(e.key === 'Enter'){
+        if(state === 'ready'){ startBtn.click(); }
+      }
+    });
+
+    // Retry button -> go back to ready (show Bắt đầu)
+    retryBtn.addEventListener('click', ()=> {
+      // return to start state (same game tab)
+      state = 'ready';
+      resetToReady();
+    });
+
+    // Ranking modal
+    rankBtn.addEventListener('click', ()=> {
+      renderRanks();
+      modalWrap.classList.remove('hidden');
+      // add backdrop
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      backdrop.id = 'backdrop_temp';
+      backdrop.appendChild(modalWrap.querySelector('.modal'));
+      document.body.appendChild(backdrop);
+      // close modal when clicking outside
+      backdrop.addEventListener('click', (ev)=>{
+        if(ev.target === backdrop) closeRanking();
+      });
+    });
+
+    function closeRanking(){
+      const backdrop = document.getElementById('backdrop_temp');
+      if(backdrop){
+        const modal = backdrop.querySelector('.modal');
+        backdrop.remove();
+        document.body.appendChild(modal); // put back (will be removed by reset)
+      }
+      modalWrap.classList.add('hidden');
+      // move modal element back into DOM inside wrapper
+      const modalElement = document.querySelector('.modal');
+      if(modalElement) modalWrap.appendChild(modalElement);
+    }
+
+    closeModal.addEventListener('click', closeRanking);
+    clearRanks.addEventListener('click', ()=>{
+      if(confirm('Xóa toàn bộ lịch sử xếp hạng?')){ localStorage.removeItem(STORAGE_KEY); renderRanks(); }
+    });
+
+    // Storage: save scores
+    function saveScore(ms){
+      const list = loadScores();
+      list.push({time: Math.round(ms), date: Date.now()});
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+    function loadScores(){
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return [];
+        return JSON.parse(raw);
+      } catch(e){ return []; }
+    }
+
+    function renderRanks(){
+      const all = loadScores();
+      // your recent: last 10 entries (descending by date)
+      const recent = all.slice().sort((a,b)=>b.date - a.date).slice(0,20);
+      yourList.innerHTML = recent.length ? recent.map(r=>`
+        <div class="score-item">
+          <div>${new Date(r.date).toLocaleString()}</div>
+          <div style="font-weight:700">${formatMs(r.time)}</div>
+        </div>
+      `).join('') : '<div style="padding:10px;color:var(--muted)">Chưa có lượt chơi nào</div>';
+
+      // top list: sort ascending (nhỏ = tốt)
+      const top = all.slice().sort((a,b)=>a.time - b.time).slice(0,20);
+      topList.innerHTML = top.length ? top.map((r,i)=>`
+        <div class="score-item" style="${i<3 ? 'background:linear-gradient(90deg, rgba(255,255,255,0.02), transparent);border-radius:6px':''}">
+          <div>#${i+1} ${new Date(r.date).toLocaleDateString()}</div>
+          <div style="font-weight:800">${formatMs(r.time)}</div>
+        </div>
+      `).join('') : '<div style="padding:10px;color:var(--muted)">Chưa có điểm nào</div>';
+    }
+
+    function formatMs(ms){
+      if(ms >= 1000) return (ms/1000).toFixed(3) + ' s';
+      return ms.toFixed(0) + ' ms';
+    }
+
+    // Initialize
+    showIntro();
+
+    // Accessibility: allow clicking area by tapping anywhere on game screen when running
+    gameScreen.addEventListener('click', (e)=>{
+      // if running and click not on buttons, stop
+      if(state === 'running' && !e.target.closest('.btn')) stopRun();
+    });
+
+    // Ensure modal content moves to proper wrapper on initial load
+    (function	setupModal(){
+      const modal = document.querySelector('.modal');
+      if(modal) modalWrap.appendChild(modal);
+    })();
+
+    // Prevent double-run if user switches quickly
+    window.addEventListener('beforeunload', ()=>{ if(rafId) cancelAnimationFrame(rafId); });
+
+    // small UX: close modal on ESC
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape') {
+        const backdrop = document.getElementById('backdrop_temp');
+        if(backdrop) closeRanking();
+      }
+    });
+
+    // Mobile: large tap area focus
+    clickArea.addEventListener('touchstart', (e)=> { e.preventDefault(); if(state==='running') stopRun(); });
+
+  </script>
+</body>
+  </html>
